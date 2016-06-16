@@ -1,54 +1,45 @@
 import java.util.ArrayList;
+import java.util.Scanner;
 import java.io.*;
 class Library {
-	private ArrayList<String> userData;
-	private ArrayList<String> books;
-	private ArrayList<String> deptNum;
+	private ArrayList<String[]> userData;
+	private ArrayList<String[]> books;
+	private ArrayList<String[]> deptNum;
 	/**
 	 * Create the database of libary
 	 */
 	public Library() {
-		userData = new ArrayList<String>(200);
-		books = new ArrayList<String>(200);
-		deptNum = new ArrayList<String>(200);
+		userData = new ArrayList<String[]>(200);
+		books = new ArrayList<String[]>(200);
+		deptNum = new ArrayList<String[]>(200);
 		String line = null;
-		FileInputStream fin = null;
-		BufferedReader reader = null;
+		Scanner inputStream = null;
 		try {
-			fin = new FileInputStream("DataSet/UID.csv");
-			reader = new BufferedReader(new InputStreamReader(fin, "Unicode"));
-			reader.readLine();
-			line = reader.readLine();
-			while(line != null) {
-				userData.add(line);
-				line = reader.readLine();
+			inputStream = new Scanner(new FileInputStream("DataSet/UID.csv"), "Big5");
+			line = inputStream.nextLine();
+			while(inputStream.hasNextLine()) {
+				line = inputStream.nextLine();
+				userData.add(line.split(","));
 			}
-			reader.close();
+			inputStream.close();
 
-			fin = new FileInputStream("DataSet/booksAndBranches.csv");
-			reader = new BufferedReader(new InputStreamReader(fin, "Unicode"));
-			reader.readLine();
-			line = reader.readLine();
-			while(line != null) {
-				books.add(line);
-				line = reader.readLine();
+			inputStream = new Scanner(new FileInputStream("DataSet/booksAndBranches.csv"), "Unicode");
+			inputStream.nextLine();
+			while(inputStream.hasNextLine()) {
+				line = inputStream.nextLine();
+				books.add(line.split(","));
 			}
-			reader.close();
+			inputStream.close();
 
-			fin = new FileInputStream("DataSet/deptNum.csv");
-			reader = new BufferedReader(new InputStreamReader(fin, "Unicode"));
-			reader.readLine();
-			line = reader.readLine();
-			while(line != null) {
-				deptNum.add(line);
-				line = reader.readLine();
+			inputStream = new Scanner(new FileInputStream("DataSet/deptNum.csv"), "Big5");
+			inputStream.nextLine();
+			while(inputStream.hasNextLine()) {
+				line = inputStream.nextLine();
+				deptNum.add(line.split(","));
 			}
-			reader.close();
+			inputStream.close();
 		} catch (FileNotFoundException e) {
 			System.out.println("File not found");
-			System.exit(1);
-		} catch (IOException e) {
-			System.out.println("Something went wrong when reading file");
 			System.exit(1);
 		}
 	}
@@ -57,31 +48,39 @@ class Library {
 	 * Just use to check whether UserData is read correctly
 	 */
 	public void showUserData() {
-		for(int i = 0; i < userData.size(); i++)
-			System.out.println(userData.get(i));
-		System.out.println(userData.size());
+		for(int i = 0; i < userData.size(); i++) {
+			for(String e : userData.get(i))
+				System.out.print(e + " ");
+			System.out.println("");
+		}
 	}
 
 	/**
 	 * Just use to check whether UserData is read correctly
 	 */
 	public void showBooks() {
-		for(int i = 0; i < books.size(); i++)
-			System.out.println(books.get(i));
-		System.out.println(books.size());
+		for(int i = 0; i < books.size(); i++) {
+			for(String e : books.get(i))
+				System.out.print(e + " ");
+			System.out.println("");
+		}
 	}
 
 	/**
 	 * Just use to check whether UserData is read correctly
 	 */
 	public void showDeptNum() {
-		for(int i = 0; i < deptNum.size(); i++)
-			System.out.println(deptNum.get(i));
-		System.out.println(deptNum.size());
+		for(int i = 0; i < deptNum.size(); i++) {
+			for(String e : deptNum.get(i))
+				System.out.print(e + " ");
+			System.out.println("");
+		}
 	}
 
 	public static void main(String[] args) {
 		Library l = new Library();
-		l.showBooks();
+		//l.showBooks();
+		//l.showDeptNum();
+		//l.showUserData();
 	}
 }
