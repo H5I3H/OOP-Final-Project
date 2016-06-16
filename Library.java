@@ -2,12 +2,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Scanner;
 import java.io.*;
-public class Libary {
+public class Library {
 	private ArrayList<UserData> userData;
 	private ArrayList<Books> books;
 	private ArrayList<DeptNum> depts;
 
-	public Libary() {
+	public Library() {
 		userData = new ArrayList<UserData>(200);
 		books = new ArrayList<Books>(1000);
 		depts = new ArrayList<DeptNum>(185);
@@ -98,6 +98,6 @@ public class Libary {
 	}
 
 	public static void main(String[] args) {
-		Libary l = new Libary();
+		Library l = new Library();
 	}
 }
