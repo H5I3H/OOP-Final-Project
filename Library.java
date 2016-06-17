@@ -6,8 +6,10 @@ public class Library {
 	private ArrayList<UserData> userData;
 	private ArrayList<Books> books;
 	private ArrayList<DeptNum> depts;
+	private Date currentDay;
 
 	public Library() {
+		currentDay = new Date(2010, 1, 1);
 		userData = new ArrayList<UserData>(200);
 		books = new ArrayList<Books>(1000);
 		depts = new ArrayList<DeptNum>(185);
@@ -44,6 +46,58 @@ public class Library {
 		Collections.sort(userData);
 		Collections.sort(books);
 		Collections.sort(depts);
+	}
+	public String today() {
+		return currentDay.toString();
+	}
+
+	public String borrow(String[] input) {
+		currentDay.setDate(input[4].split("/"));
+		int UIDIndex = 0;
+		int bookIndex = 0;
+		if((UIDIndex = getUserInfoByUID(input[0])) != -1) {
+			UserData u = userData.get(UIDIndex);
+			if(u.bRight == 1) {
+				if(u.bQty == 10)
+					return input[0]+"已借數量達上限(10本)";
+				//This will jump to CHECK_BOOK
+			} else if(u.bRight == -1) {
+				return "無借書權限";
+			} else {
+				if(currentDay.compare(new Date(userData.get(UIDIndex).bRightFrom.split("/"))) <= 0) {
+					if(u.bQty == 10)
+						return input[0]+"已借數量達上限(10本)";
+					//This will jump to CHECK_BOOK
+				} else
+					return "無借書權限";
+			}
+			//CHECK_BOOK
+			if((bookIndex = getBookInfoBySerialNum(input[3])) != -1) {
+				Books b = books.get(bookIndex);
+				if(b.status == 0) {
+					if(b.bBy.compareToIgnoreCase(input[0]) == 0)
+						return input[0]+"已借同書號的書";
+					return "書已被借走";
+				}
+				else if(b.status != Byte.parseByte(input[2]))
+					return "書不在第"+input[2]+"分館,它在第"+books.get(bookIndex).status+"分館";
+				else {
+					if(b.rUsers == 3)
+						return "書已被其他人預約";
+					else {
+						//終於可以借書了
+						int remain = 10 - (++u.bQty);
+						b.status = 0;
+						b.bBy = input[0];
+						b.bDue = currentDay.nDaysAfter(30);
+						return input[0]+"借書成功,歸還期限:"+currentDay.nDaysAfter(30)+
+								",仍可借數量:"+remain;
+					}
+				}
+			} else
+				return "書不存在";
+		} else 
+			return input[0]+"不存在";
 	}
 	
 	private int getUserInfoByUID(String UID) {
@@ -95,9 +149,5 @@ public class Library {
 				return middle;
 		}
 		return -1;
-	}
-
-	public static void main(String[] args) {
-		Library l = new Library();
 	}
 }

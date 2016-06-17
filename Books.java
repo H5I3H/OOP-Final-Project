@@ -1,6 +1,6 @@
 
 public class Books implements Comparable<Books> {
-	String oriBranch;
+	byte oriBranch;
 	String title;
 	String serialNum;
 	int bTimes;
@@ -17,7 +17,7 @@ public class Books implements Comparable<Books> {
 	byte transferTo2;
 	byte transferTo3;
 	public Books(String[] in) {
-		oriBranch = in[0];
+		oriBranch = Byte.parseByte(in[0]);
 		title = in[1];
 		serialNum = in[2];
 		bTimes = Integer.parseInt(in[3]);
