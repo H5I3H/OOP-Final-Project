@@ -7,6 +7,7 @@ public class Library {
 	private ArrayList<Books> books;
 	private ArrayList<DeptNum> depts;
 	private Date currentDay;
+	private PrintWriter outputStream;
 
 	public Library() {
 		currentDay = new Date(2010, 1, 1);
@@ -39,6 +40,8 @@ public class Library {
 				depts.add(new DeptNum(line.split(",")));
 			}
 			inputStream.close();
+			
+			outputStream = new PrintWriter(new FileOutputStream("/Users/True5402/Desktop/JAVA/OOP-Final-Project/DataSet/historyLog.csv", true));
 		} catch (FileNotFoundException e) {
 			System.out.println("File not found");
 			System.exit(1);
@@ -46,6 +49,9 @@ public class Library {
 		Collections.sort(userData);
 		Collections.sort(books);
 		Collections.sort(depts);
+	}
+	public void exit() {
+		outputStream.close();
 	}
 	public String today() {
 		return currentDay.toString();
@@ -75,7 +81,7 @@ public class Library {
 			if((bookIndex = getBookInfoBySerialNum(input[3])) != -1) {
 				Books b = books.get(bookIndex);
 				if(b.status == 0) {
-					if(b.bBy.compareToIgnoreCase(input[0]) == 0)
+					if(b.bBy.equalsIgnoreCase(input[0]))
 						return input[0]+"已借同書號的書";
 					return "書已被借走";
 				}
@@ -90,6 +96,7 @@ public class Library {
 						b.status = 0;
 						b.bBy = input[0];
 						b.bDue = currentDay.nDaysAfter(30);
+						outputStream.println(input[0]+","+1+","+input[2]+","+input[3]+","+currentDay.toString());
 						return input[0]+"借書成功,歸還期限:"+currentDay.nDaysAfter(30)+
 								",仍可借數量:"+remain;
 					}

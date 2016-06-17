@@ -31,6 +31,11 @@ public class LibraryDemo {
 			case "inquire":
 				//TODO 同上
 				break;
+			case "exit":
+				/* Close the output stream to make sure
+				 * all the data is correctly written to file */
+				l.exit();
+				return;
 			default:
 				System.out.println("Unknown operation");
 			}
@@ -40,9 +45,11 @@ public class LibraryDemo {
 	 * Get user input and determine the operation
 	 * @param input user input
 	 * @return name of operation. It can be "borrow", "return", "renew", 
-	 * "reserve", and "inquire". If return "unknown" then its an unknown operation
+	 * "reserve", "inquire", and "exit". If return "unknown" then its an unknown operation
 	 */
 	public static String parseInput(String input) {
+		if(input.equalsIgnoreCase("exit"))
+			return "exit";
 		String[] t = input.split(",");
 		if(t[1].equalsIgnoreCase("borrow"))
 			return "borrow";
