@@ -31,10 +31,19 @@ public class LibraryDemo {
 			case "inquire":
 				//TODO 同上
 				break;
+			case "addUser":
+				System.out.println(l.AddUser(userInput.split(",")));
+				System.out.println();
+				break;
+			case "deleteUser":
+				System.out.println(l.deleteUser(userInput.split(",")));
+				System.out.println();
+				break;
 			case "exit":
 				/* Close the output stream to make sure
 				 * all the data is correctly written to file */
 				l.exit();
+				keyboard.close();
 				return;
 			default:
 				System.out.println("Unknown operation");
@@ -59,6 +68,10 @@ public class LibraryDemo {
 			return "renew";
 		else if(t[1].equalsIgnoreCase("reserve"))
 			return "reserve";
+		else if(t[1].equalsIgnoreCase("addUser"))
+			return "addUser";
+		else if(t[1].equalsIgnoreCase("deleteUser"))
+			return "deleteUser";
 		else {
 			if(t[0].equalsIgnoreCase("inquire"))
 				return "inquire";
