@@ -21,12 +21,18 @@ public class LibraryDemo {
 				//TODO 寫在Library.java然後在這邊呼叫它
 				//像是 l.return(userInput) 之類的。
 				//要傳什麼參數跟方法要叫什麼名字都看個人
+				System.out.println(l.returnn(userInput.split(",")));
+				System.out.println();
 				break;
 			case "renew":
 				//TODO 同上
+				System.out.println(l.renew(userInput.split(",")));
+				System.out.println();
 				break;
 			case "reserve":
 				//TODO 同上
+				System.out.println(l.reserve(userInput.split(",")));
+				System.out.println();
 				break;
 			case "inquire":
 				//TODO 同上

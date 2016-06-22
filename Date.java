@@ -23,6 +23,11 @@ public class Date {
 		month = Integer.parseInt(date[1]);
 		day = Integer.parseInt(date[2]);
 	}
+	public Date(Date d){
+		year = d.year;
+		month = d.month;
+		day = d.day;
+	}
 	/**
 	 * 日期加一天
 	 */
@@ -110,6 +115,24 @@ public class Date {
 					return 0;
 			}
 		}
+	}
+	public int difference(Date d) {
+		int count = 0;
+		Date temp = new Date(d);
+		Date temp2 = new Date(this);
+		if(compare(d) > 0) {
+			while(!temp2.equals(temp)) {
+				temp2.nextDay();
+				count++;
+			}
+		} else if(compare(d) < 0) {
+			while(!temp.equals(temp2)) {
+				temp.nextDay();
+				count++;
+			}
+		} else
+			count = 0;
+		return count;
 	}
 	public String toString() {
 		return year + "/" + month + "/" + day;

@@ -6,7 +6,7 @@ public class Books implements Comparable<Books> {
 	int bTimes;
 	byte status;
 	String bBy;
-	String bDue;
+	String bDue; //還書的期限
 	byte renewTimes;
 	byte rUsers;
 	String rUser1;
@@ -16,6 +16,9 @@ public class Books implements Comparable<Books> {
 	byte transferTo1;
 	byte transferTo2;
 	byte transferTo3;
+	//String dateAvaiToBorrow;
+	Date returnDate; //這個紀錄了還書的時間
+	byte changeBranch; //這個紀錄了當書要搬家時，他會在隔天被搬到哪一館
 	public Books(String[] in) {
 		oriBranch = Byte.parseByte(in[0]);
 		title = in[1];
@@ -32,7 +35,9 @@ public class Books implements Comparable<Books> {
 		rDue = in[12];
 		transferTo1 = Byte.parseByte(in[13]);
 		transferTo2 = Byte.parseByte(in[14]);
-		transferTo3 = Byte.parseByte(in[15]);	
+		transferTo3 = Byte.parseByte(in[15]);
+		returnDate = new Date(2010, 1, 1);
+		changeBranch = Byte.parseByte(in[0]);
 	}
 	public String toString() {
 		return oriBranch+" "+title+" "+serialNum+" "+bTimes+" "+status+
