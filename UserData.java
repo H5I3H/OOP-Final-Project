@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 
 public class UserData implements Comparable<UserData> {
 	String UID;
@@ -7,6 +8,7 @@ public class UserData implements Comparable<UserData> {
 	int bTimes;
 	String rRightFrom;
 	byte rQty;
+	ArrayList<UserHistory> history;
 
 	public UserData(String[] in) {
 		UID = in[0];
@@ -16,6 +18,7 @@ public class UserData implements Comparable<UserData> {
 		bTimes = Integer.parseInt(in[4]);
 		rRightFrom = in[5];
 		rQty = Byte.parseByte(in[6]);
+		history = new ArrayList<UserHistory>(10);
 	}
 	public String toString() {
 		return UID+" "+bRight+" "+bRightFrom+" "+bQty+" "+bTimes+" "+rRightFrom+" "+rQty;

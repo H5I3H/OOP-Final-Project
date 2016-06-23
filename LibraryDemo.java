@@ -36,6 +36,8 @@ public class LibraryDemo {
 				break;
 			case "inquire":
 				//TODO 同上
+				System.out.println(l.inquire(userInput.split(",")));
+				System.out.println();
 				break;
 			case "addUser":
 				System.out.println(l.AddUser(userInput.split(",")));
@@ -43,6 +45,10 @@ public class LibraryDemo {
 				break;
 			case "deleteUser":
 				System.out.println(l.deleteUser(userInput.split(",")));
+				System.out.println();
+				break;
+			case "transfer":
+				System.out.println(l.transfer(userInput.split(",")));
 				System.out.println();
 				break;
 			case "exit":
@@ -78,6 +84,8 @@ public class LibraryDemo {
 			return "addUser";
 		else if(t[1].equalsIgnoreCase("deleteUser"))
 			return "deleteUser";
+		else if(t[1].equalsIgnoreCase("transfer"))
+			return "transfer";
 		else {
 			if(t[0].equalsIgnoreCase("inquire"))
 				return "inquire";

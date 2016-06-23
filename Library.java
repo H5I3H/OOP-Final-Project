@@ -101,6 +101,8 @@ public class Library {
 			//CHECK_BOOK
 			if((bookIndex = getBookInfoBySerialNum(input[3])) != -1) {
 				Books b = books.get(bookIndex);
+				//在這邊應該先更新這本書預約的使用者的資訊
+				updateReserveInfo(b);
 				if(b.status == 0) {
 					if(b.bBy.equalsIgnoreCase(input[0]))
 						return input[0]+"已借同書號的書";
@@ -109,14 +111,14 @@ public class Library {
 				else if(b.status != Byte.parseByte(input[2]))
 					return "書不在第"+input[2]+"分館,它在第"+books.get(bookIndex).status+"分館";
 				else {
-					//在這邊應該先更新這本書預約的使用者的資訊
-					updateReserveInfo(b);
 					if(b.rUsers == 0) { //沒有人預約所以可以借書
 						int remain = 10 - (++u.bQty);
 						b.status = 0;
 						b.bBy = input[0];
 						b.bDue = currentDay.nDaysAfter(30);
 						borrowQueue.offer(b);
+						b.borrowDate = new Date(currentDay);
+						b.borrowBranch = Byte.parseByte(input[2]);
 						outputStream.println(input[0]+","+1+","+input[2]+","+input[3]+","+currentDay.toString());
 						return input[0]+"借書成功,歸還期限:"+currentDay.nDaysAfter(30) + ",仍可借數量:"+remain;
 					} else { //有人預約則去檢查第一順位是不是這位使用者
@@ -126,7 +128,15 @@ public class Library {
 							b.bBy = input[0];
 							b.bDue = currentDay.nDaysAfter(30);
 							b.rUsers--;
+							b.rUser1 = b.rUser2; //後面順位的預約者往上移
+							b.rUser2 = b.rUser3;
+							b.transferTo1 = b.transferTo2;
+							b.transferTo2 = b.transferTo3;
+							b.transferTo3 = b.oriBranch;
+							b.rUser3 = "B00000000";
 							borrowQueue.offer(b);
+							b.borrowDate = new Date(currentDay);
+							b.borrowBranch = Byte.parseByte(input[2]);
 							outputStream.println(input[0]+","+1+","+input[2]+","+input[3]+","+currentDay.toString());
 							return input[0]+"借書成功,歸還期限:"+currentDay.nDaysAfter(30) + ",仍可借數量:"+remain;
 						} else {
@@ -156,11 +166,17 @@ public class Library {
 			if((bookIndex = getBookInfoBySerialNum(input[3])) != -1) {
 				Books b = books.get(bookIndex);
 				if (b.bBy.equals(input[0])) {
+					b.returnDate = new Date(currentDay); //紀錄還書的日期
 					int remain = 10 - (--u.bQty);
 					if (userBranch != b.oriBranch) {
 						b.changeBranch = b.oriBranch; //紀錄隔天這本書將會被移到哪一館
-						b.returnDate = new Date(currentDay); //紀錄還書的日期
+						b.changeDate = new Date(currentDay);
 						queue.offer(b);
+					}
+					//館際調閱的priority大於異館還書，所以館際調閱的資料會蓋掉異館還書
+					if(b.transferTo1 != b.oriBranch) { //館際調閱
+						b.changeDate = new Date(currentDay);
+						b.changeBranch = b.transferTo1;
 					}
 					b.status= userBranch;			
 					b.bBy="B00000000";
@@ -168,6 +184,9 @@ public class Library {
 					u.bTimes++;
 					b.renewTimes = 0;
 					b.rDue = currentDay.nDaysAfter(5);
+					UserHistory uh = new UserHistory(b.oriBranch, b.borrowBranch, userBranch, 
+							new Date(b.borrowDate), new Date(currentDay), b.serialNum);
+					u.history.add(uh);
 					if(currentDay.compare(new Date(b.bDue.split("/"))) >= 0){
 						outputStream.println(input[0]+","+2+","+input[2]+","+input[3]+","+currentDay.toString());
 						return input[0]+"還書成功,仍可借數量:"+remain;
@@ -249,7 +268,11 @@ public class Library {
 		currentDay.setDate(input[3].split("/"));
 		routine();
 		int UIDIndex = 0;
-		int bookIndex = 0;
+		int bookIndex = getBookInfoBySerialNum(input[2]);
+		if(bookIndex == -1)
+			return "書不存在";
+		Books b = books.get(bookIndex);
+		updateReserveInfo(b);
 		if((UIDIndex = getUserInfoByUID(input[0])) != -1) {
 			UserData u = userData.get(UIDIndex);
 			if(currentDay.compare(new Date(userData.get(UIDIndex).rRightFrom.split("/"))) <= 0) {
@@ -259,34 +282,35 @@ public class Library {
 			} else
 				return "無預約權限";
 			//CHECK_BOOK
-			if((bookIndex = getBookInfoBySerialNum(input[2])) != -1) {
-				Books b = books.get(bookIndex);
-				if(b.bBy.equals(input[0]))
-					return input[0] + "已借相同書號的書";
-				if(b.rUsers == 3) 
-					return "該書已經被3位讀者預約";
-				else {
-					//終於可以預約了
-					switch(b.rUsers){
-					case 0:
-						b.rUser1 = input[0];
+			if (b.bBy.equals(input[0]))
+				return input[0] + "已借相同書號的書";
+			if (b.rUsers == 3)
+				return "該書已經被3位讀者預約";
+			else {
+				// 終於可以預約了
+				switch (b.rUsers) {
+				case 0:
+					b.rUser1 = input[0];
+					b.transferTo1 = b.oriBranch;
+					if (b.status != 0) {// 書未借出去的話，預約期限就是五天後。
 						b.rDue = currentDay.nDaysAfter(5);
-						break;
-					case 1:
-						b.rUser2 = input[0];
-						break;
-					case 2:
-						b.rUser3 = input[0];
-						break;
-					default:
-						break;
 					}
-					outputStream.println(input[0]+","+4+", ,"+input[2]+","+currentDay.toString());
-					return input[0]+"預約成功,前面有" + b.rUsers++ +"人預約";
-					}
+					// 若書已借出去，則預約期限就留到還書時在設
+					break;
+				case 1:
+					b.rUser2 = input[0];
+					b.transferTo2 = b.oriBranch;
+					break;
+				case 2:
+					b.rUser3 = input[0];
+					b.transferTo3 = b.oriBranch;
+					break;
+				default:
+					break;
+				}
+				outputStream.println(input[0] + "," + 4 + ", ," + input[2] + "," + currentDay.toString());
+				return input[0] + "預約成功,前面有" + b.rUsers++ + "人預約";
 			}
-			else
-				return "書不存在";
 		} 
 		else 
 			return input[0]+"不存在";
@@ -298,187 +322,262 @@ public class Library {
 	 * @param input user input in this format ["inquire", command]
 	 * @return response of library system
 	 */
-	public String inquire(String[] input){
+	public String inquire(String[] input) {
 		routine();
-		if (input.length == 2){
-			switch(input[1]){
-			case "bookBorrowed" :
+		if (input.length == 2) {
+			switch (input[1]) {
+			case "bookBorrowed":
 				int bookBorrowed = 0;
-				for(int i = 0;i<books.size();i++){
-					if (books.get(i).status == 0 )
+				for (int i = 0; i < books.size(); i++) {
+					if (books.get(i).status == 0)
 						bookBorrowed++;
-				}return "當前所有圖書館總共借出" + bookBorrowed + "本書。";
-		
-			case "peopleBorrowing" :
+				}
+				return "當前所有圖書館總共借出" + bookBorrowed + "本書。";
+
+			case "peopleBorrowing":
 				int peopleBorrowing = 0;
-				for(int i = 0;i < userData.size();i++){
-					if(userData.get(i).bQty != 0 )
+				for (int i = 0; i < userData.size(); i++) {
+					if (userData.get(i).bQty != 0)
 						peopleBorrowing++;
-				}return "當前所有圖書館總借書人數為" + peopleBorrowing;
-				
-			case "userBorrowingBookRank" :
+				}
+				return "當前所有圖書館總借書人數為" + peopleBorrowing;
+
+			case "userBorrowingBookRank":
 				String userBorrowingBookRank = "";
 				byte booksBorrowing = 10;
 				int rankCount = 0;
 				int nameListNum = 0;
-				int rank= 1;
-				while(true){
+				int rank = 1;
+				while (true) {
 					rankCount = 0;
-					for(int i = 0;i<userData.size();i++){
-						if (userData.get(i).bQty == booksBorrowing){
+					for (int i = 0; i < userData.size(); i++) {
+						if (userData.get(i).bQty == booksBorrowing) {
 							nameListNum++;
 							rankCount++;
-							userBorrowingBookRank = userBorrowingBookRank + "第" + rank +  "名, ID:" + userData.get(i).UID + ", 當前借了" + booksBorrowing + "本書。\n";
+							userBorrowingBookRank = userBorrowingBookRank + "第" + rank + "名, ID:" + userData.get(i).UID
+									+ ", 當前借了" + booksBorrowing + "本書。\n";
 						}
 					}
 					rank = rank + rankCount;
 					booksBorrowing--;
-					if (nameListNum >=10)
+					if (nameListNum >= 10)
 						break;
-				}return userBorrowingBookRank ;
-			
-			case "userHasBorrowedBookRank" :
+				}
+				return userBorrowingBookRank;
+
+			case "userHasBorrowedBookRank":
 				String userHasBorrowedBookRank = "";
 				nameListNum = 0;
-				rank= 1;
+				rank = 1;
 				Integer userHasBorrowedBook[] = new Integer[userData.size()];
-				for(int i = 0;i<userData.size();i++){
+				for (int i = 0; i < userData.size(); i++) {
 					userHasBorrowedBook[i] = userData.get(i).bTimes;
 				}
 				int booksBorrowed = (int) Collections.max(Arrays.asList(userHasBorrowedBook));
-				while(true){
+				while (true) {
 					rankCount = 0;
-					for(int i = 0;i<userData.size();i++){
-						if (userData.get(i).bTimes == booksBorrowed){
+					for (int i = 0; i < userData.size(); i++) {
+						if (userData.get(i).bTimes == booksBorrowed) {
 							nameListNum++;
 							rankCount++;
-							userHasBorrowedBookRank = userHasBorrowedBookRank + "第" + rank +  "名, ID:" + userData.get(i).UID + ", 已經借了" + booksBorrowed + "本書。\n";
+							userHasBorrowedBookRank = userHasBorrowedBookRank + "第" + rank + "名, ID:"
+									+ userData.get(i).UID + ", 已經借了" + booksBorrowed + "本書。\n";
 						}
 					}
 					rank = rank + rankCount;
 					booksBorrowed--;
-					if (nameListNum >=10)
+					if (nameListNum >= 10)
 						break;
-				}return userHasBorrowedBookRank ;
-			
+				}
+				return userHasBorrowedBookRank;
+
 			case "userNoRightToBorrow":
 				int userNoRightToBorrow = 0;
-				for(int i = 0;i < userData.size();i++){
-					if(userData.get(i).bRight != 1 )
+				for (int i = 0; i < userData.size(); i++) {
+					if (userData.get(i).bRight != 1)
 						userNoRightToBorrow++;
-				}return "當前停止借書權力人數共有" + userNoRightToBorrow + "人。";
-			
-			case "userNoRightToBorrowRank" :
+				}
+				return "當前停止借書權力人數共有" + userNoRightToBorrow + "人。";
+
+			case "userNoRightToBorrowRank":
 				String userNoRightToBorrowRank = "";
-				for (int i = 0 ; i<userData.size();i++){
+				for (int i = 0; i < userData.size(); i++) {
 					Date From = new Date(userData.get(i).bRightFrom.split("/"));
-					if(userData.get(i).bRight == 0 )
-						userNoRightToBorrowRank = userNoRightToBorrowRank + "第"+i+"位, " + userData.get(i).UID + ", "+ currentDay.difference(From) +"日後始可借書";
-				}return userNoRightToBorrowRank;
-			
+					if (userData.get(i).bRight == 0)
+						userNoRightToBorrowRank = userNoRightToBorrowRank + "第" + (i + 1) + "位, " + userData.get(i).UID
+								+ ", " + currentDay.difference(From) + "日後始可借書";
+				}
+				return userNoRightToBorrowRank;
+
 			case "userNoRightToReserve":
 				int userNoRightToReserve = 0;
-				for(int i = 0;i < userData.size();i++){
-					if(currentDay.compare(new Date(userData.get(i).bRightFrom.split("/"))) <= 0)
+				for (int i = 0; i < userData.size(); i++) {
+					if (currentDay.compare(new Date(userData.get(i).bRightFrom.split("/"))) <= 0)
 						userNoRightToReserve++;
-				}return "當前停止預約權力人數共有" + userNoRightToReserve + "人。";
-			
-			case "userNoRightToReserveRank" :
+				}
+				return "當前停止預約權力人數共有" + userNoRightToReserve + "人。";
+
+			case "userNoRightToReserveRank":
 				String userNoRightToReserveRank = "";
-				for (int i = 0 ; i<userData.size();i++){
+				for (int i = 0; i < userData.size(); i++) {
 					Date From = new Date(userData.get(i).rRightFrom.split("/"));
-					if(userData.get(i).bRight == 0 )
-						userNoRightToReserveRank = userNoRightToReserveRank + "第"+i+"位, " + userData.get(i).UID + ", "+ currentDay.difference(From) +"日後始可預約";
-				}return userNoRightToReserveRank;
-			
+					if (userData.get(i).bRight == 0)
+						userNoRightToReserveRank = userNoRightToReserveRank + "第" + (i + 1) + "位, "
+								+ userData.get(i).UID + ", " + currentDay.difference(From) + "日後始可預約";
+				}
+				return userNoRightToReserveRank;
+
 			case "bookBorrowedTimesRank":
 				String bookBorrowedTimesRank = "";
 				int bookListNum = 0;
-				rank= 1;
+				rank = 1;
 				Integer bookBorrowedTimes[] = new Integer[books.size()];
-				for(int i = 0;i<books.size();i++){
+				for (int i = 0; i < books.size(); i++) {
 					bookBorrowedTimes[i] = books.get(i).bTimes;
 				}
 				int BorrowedTimes = (int) Collections.max(Arrays.asList(bookBorrowedTimes));
-				while(true){
+				while (true) {
 					rankCount = 0;
-					for(int i = 0;i<books.size();i++){
-						if (books.get(i).bTimes == BorrowedTimes){
+					for (int i = 0; i < books.size(); i++) {
+						if (books.get(i).bTimes == BorrowedTimes) {
 							bookListNum++;
 							rankCount++;
-							bookBorrowedTimesRank = bookBorrowedTimesRank + "第" + rank +  "名, 原館:" + books.get(i).oriBranch + ", 累計借出次數:" + BorrowedTimes + "次。\n";
+							bookBorrowedTimesRank = bookBorrowedTimesRank + "第" + rank + "名, 原館:"
+									+ books.get(i).oriBranch + ", 書碼" + books.get(i).serialNum + ", 累計借出次數:"
+									+ BorrowedTimes + "次。\n";
 						}
 					}
 					rank = rank + rankCount;
 					BorrowedTimes--;
-					if (bookListNum >=10)
+					if (bookListNum >= 10)
 						break;
-				}return bookBorrowedTimesRank ;
+				}
+				return bookBorrowedTimesRank;
 			case "libraryBookBorrowedTimesRank":
 				String libraryBookBorrowedTimesRank = "";
 				int Q = 0;
-				int temp[] = new int[6] ;
-				int libraryBookBorrowedTimes[] = {0,0,0,0,0,0};
-				for(int i = 0;i<books.size();i++){
-					switch (books.get(i).oriBranch){
+				int temp[] = new int[6];
+				int libraryBookBorrowedTimes[] = { 0, 0, 0, 0, 0, 0 };
+				for (int i = 0; i < books.size(); i++) {
+					switch (books.get(i).oriBranch) {
 					case 0:
-			
+
 					case 1:
 						libraryBookBorrowedTimes[1]++;
-					
+
 					case 2:
 						libraryBookBorrowedTimes[2]++;
-						
+
 					case 3:
 						libraryBookBorrowedTimes[3]++;
-						
+
 					case 4:
 						libraryBookBorrowedTimes[4]++;
-						
+
 					case 5:
 						libraryBookBorrowedTimes[5]++;
 					}
 				}
-				for(int i = 1 ; i <= 5 ; i++){
+				for (int i = 1; i <= 5; i++) {
 					temp[i] = libraryBookBorrowedTimes[i];
 				}
 				Arrays.sort(temp);
 				Q = temp[5];
 				rank = 1;
-				while(true){
+				while (true) {
 					rankCount = 0;
-					for(int i = 1 ; i <= 5 ; i++){
-						if (libraryBookBorrowedTimes[i] == Q){
+					for (int i = 1; i <= 5; i++) {
+						if (libraryBookBorrowedTimes[i] == Q) {
 							rankCount++;
-							libraryBookBorrowedTimesRank = libraryBookBorrowedTimesRank + "第" + rank +  "名, 圖書館名:" + i + ", 累計借出次數:" + libraryBookBorrowedTimes[i] + "次。\n";
+							libraryBookBorrowedTimesRank = libraryBookBorrowedTimesRank + "第" + rank + "名, 圖書館名:" + i
+									+ ", 累計借出次數:" + libraryBookBorrowedTimes[i] + "次。\n";
 						}
 					}
 					Q--;
 					rank = rank + rankCount;
-					if(Q == 0)
+					if (Q == 0)
 						break;
-				}return libraryBookBorrowedTimesRank;
-			default : return "input error";		
+				}
+				return libraryBookBorrowedTimesRank;
+			default:
+				return "input error";
 			}
+		} else if (input[1].equals("userBorrowHistory")) {
+			// TODO "inquire", "userBorrowHistory",
+			String output = "";
+			int userIndex = getUserInfoByUID(input[2]);
+			Collections.sort(userData.get(userIndex).history);
+			for (UserHistory u : userData.get(userIndex).history)
+				output += (u + "\n");
+			return output;
+		} else if (input[1].equals("bookKeyWord")) {
+			String booksFoundByKeyWord = "";
+			String[] keyWordSplit = input[2].split("");
+			String bookTemp[] = new String[books.size()];
+			int foundBookNum = 0;
+			for (int i = 0; i < books.size(); i++) {
+				bookTemp[i] = books.get(i).title;
+				if (books.get(i).title.lastIndexOf(input[2]) != -1) {
+					foundBookNum++;
+					bookTemp[i] = "";
+					switch (books.get(i).status / books.get(i).oriBranch) {
+					case 0:
+						booksFoundByKeyWord = booksFoundByKeyWord + "查到的第" + foundBookNum + "本, 原館名:"
+								+ books.get(i).oriBranch + ", 書碼: " + books.get(i).serialNum + ", 當前該書籍狀態: 已借出。\n";
+						break;
+					case 1:
+						booksFoundByKeyWord = booksFoundByKeyWord + "查到的第" + foundBookNum + "本, 原館名:"
+								+ books.get(i).oriBranch + ", 書碼: " + books.get(i).serialNum + ", 當前該書籍狀態: 在原館內(第"
+								+ books.get(i).oriBranch + "分館)。\n";
+						break;
+					default:
+						booksFoundByKeyWord = booksFoundByKeyWord + "查到的第" + foundBookNum + "本, 原館名:"
+								+ books.get(i).oriBranch + ", 書碼: " + books.get(i).serialNum + ", 當前該書籍狀態: 在別館內(第"
+								+ books.get(i).status + "分館)。\n";
+						break;
+					}
+				}
+			}
+
+			for (int i = 0; i < books.size(); i++) {
+				for (int j = 0; j < keyWordSplit.length; j++) {
+					if ((bookTemp[i].lastIndexOf(keyWordSplit[j])) != -1) {
+						foundBookNum++;
+						switch (books.get(i).status / books.get(i).oriBranch) {
+						case 0:
+							booksFoundByKeyWord = booksFoundByKeyWord + "查到的第" + foundBookNum + "本, 原館名:"
+									+ books.get(i).oriBranch + ", 書碼: " + books.get(i).serialNum + ", 當前該書籍狀態: 已借出。\n";
+							break;
+						case 1:
+							booksFoundByKeyWord = booksFoundByKeyWord + "查到的第" + foundBookNum + "本, 原館名:"
+									+ books.get(i).oriBranch + ", 書碼: " + books.get(i).serialNum + ", 當前該書籍狀態: 在原館內(第"
+									+ books.get(i).oriBranch + "分館)。\n";
+							break;
+						default:
+							booksFoundByKeyWord = booksFoundByKeyWord + "查到的第" + foundBookNum + "本, 原館名:"
+									+ books.get(i).oriBranch + ", 書碼: " + books.get(i).serialNum + ", 當前該書籍狀態: 在別館內(第"
+									+ books.get(i).status + "分館)。\n";
+							break;
+						}
+					}
+				}
+			}
+			return booksFoundByKeyWord;
 		}
-		else if(input[2].equals("userBorrowHistory")){
-			//TODO "inquire", "userBorrowHistory", UID
-			return "";
-		}
-		else{
+
+		else {
 			int bookIndex = 0;
 			bookIndex = getBookInfoBySerialNum(input[2]);
-				Books b = books.get(bookIndex);
+			Books b = books.get(bookIndex);
 			if (b.status == 0)
 				return "該書籍已被借走。";
 			else if (b.status == b.oriBranch)
 				return "該書在原館內";
 			else
 				return "該書在第" + b.status + "分館內。";
+		}
 	}
-}
-		
-	
+			
 	/**
 	 * Register a new user to the library system
 	 * @param input user input in this format [UID, "addUser", date]
@@ -558,6 +657,77 @@ public class Library {
 		} else
 			return input[0]+"不存在";
 	}
+	public String transfer(String[] input) {
+		currentDay.setDate(input[4].split("/"));
+		routine();
+		int bookIndex = 0;
+		if(getUserInfoByUID(input[0]) != -1) {	
+			if((bookIndex = getBookInfoBySerialNum(input[3])) != -1) {
+				Books b = books.get(bookIndex);
+				updateReserveInfo(b); //先更新這本書的預約資訊
+				int transIndex = 0;
+				switch(b.rUsers) {
+				case 0:
+					return input[0]+"尚未預約該書";
+				case 1:
+					if(!b.rUser1.equalsIgnoreCase(input[0]))
+						return input[0]+"尚未預約該書";
+					transIndex = 1;
+					break;
+				case 2:
+					if(!b.rUser1.equalsIgnoreCase(input[0]) && !b.rUser2.equalsIgnoreCase(input[0]))
+						return input[0]+"尚未預約該書";
+					if(b.rUser1.equalsIgnoreCase(input[0]))
+						transIndex = 1;
+					else
+						transIndex = 2;
+					break;
+				case 3:
+					if(!b.rUser1.equalsIgnoreCase(input[0]) && !b.rUser2.equalsIgnoreCase(input[0])
+							&& !b.rUser3.equalsIgnoreCase(input[0]))
+						return input[0]+"尚未預約該書";
+					if(b.rUser1.equalsIgnoreCase(input[0]))
+						transIndex = 1;
+					else if(b.rUser2.equalsIgnoreCase(input[0]))
+						transIndex = 2;
+					else 
+						transIndex = 3;
+					break;
+				default:
+					break;
+				}
+				switch (transIndex) {
+				case 1:
+					if (b.status == 0)
+						b.transferTo1 = Byte.parseByte(input[2]);
+					else {
+						if (b.rDue.equalsIgnoreCase(currentDay.toString()))
+							return "已達預約取書期間的最後一日";
+						else {
+							b.changeDate = new Date(currentDay);
+							b.changeBranch = Byte.parseByte(input[2]);
+							queue.offer(b);
+							outputStream.println(input[0]+","+5+","+input[2]+","+input[3]+","+currentDay.toString());
+							return input[0] + "調閱成功";
+						}
+					}
+				case 2:
+					b.transferTo2 = Byte.parseByte(input[2]);
+					break;
+				case 3:
+					b.transferTo3 = Byte.parseByte(input[2]);
+					break;
+				default:
+					break;
+				}
+				return input[0] + "調閱成功";
+			} else 
+				return "書不存在";
+			
+		} else
+			return input[0]+"不存在";
+	}
+	
 	private int getUserInfoByUID(String UID) {
 		//Do binary search
 		int start = 0;
@@ -616,12 +786,11 @@ public class Library {
 		//處理異館還書
 		while(!queue.isEmpty()) {
 			Books temp = queue.peek();
-			if(currentDay.compare(temp.returnDate) != 0) {
+			if (currentDay.compare(temp.changeDate) != 0) {
 				temp.status = temp.changeBranch;
 				queue.poll();
-			} else {
+			} else
 				break;
-			}
 		}
 		while(!borrowQueue.isEmpty()) {
 			Books temp = borrowQueue.peek();
@@ -646,8 +815,10 @@ public class Library {
 				int uIndex = getUserInfoByUID(b.rUser1);
 				UserData u = userData.get(uIndex);
 				u.rRightFrom = new Date(b.rDue.split("/")).nDaysAfter(91);
-				u.rQty--;
+				b.transferTo1 = b.oriBranch;
+				b.status = b.transferTo1;
 				b.rUsers--;
+				u.rQty--;
 			}
 			break;
 		case 2:
@@ -661,7 +832,13 @@ public class Library {
 					b.rUsers--;
 					if(i == 0) {
 						b.rUser1 = b.rUser2;
-						b.rDue = b.returnDate.nDaysAfter(10);
+						b.transferTo1 = b.transferTo2;
+						b.status = b.transferTo1;
+						b.transferTo2 = b.oriBranch;
+						b.rDue = new Date(b.rDue.split("/")).nDaysAfter(5);
+					} else {
+						b.transferTo1 = b.oriBranch;
+						b.status = b.transferTo1;
 					}
 				}
 			}
@@ -677,11 +854,22 @@ public class Library {
 					b.rUsers--;
 					if(i == 0) {
 						b.rUser1 = b.rUser2;
+						b.transferTo1 = b.transferTo2;
+						b.status = b.transferTo1;
+						b.transferTo2 = b.transferTo3;
+						b.transferTo3 = b.oriBranch;
 						b.rUser2 = b.rUser3;
-						b.rDue = b.returnDate.nDaysAfter(10);
+						b.transferTo2 = b.transferTo3;
+						b.rDue = new Date(b.rDue.split("/")).nDaysAfter(5);
 					} else if(i == 1) {
 						b.rUser1 = b.rUser2;
-						b.rDue = b.returnDate.nDaysAfter(15);
+						b.transferTo1 = b.transferTo2;
+						b.status = b.transferTo1;
+						b.transferTo2 = b.oriBranch;
+						b.rDue = new Date(b.rDue.split("/")).nDaysAfter(5);
+					} else {
+						b.transferTo1 = b.oriBranch;
+						b.status = b.transferTo1;
 					}
 				}
 			}
